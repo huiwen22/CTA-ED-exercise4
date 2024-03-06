@@ -1,0 +1,84 @@
+---
+title: "Exercise 4"
+output: html_document
+date: "2024-03-05"
+---
+
+```{r setup, include=FALSE}
+library(kableExtra)
+```
+
+```{r, message=F}
+library(dplyr)
+library(quanteda) # includes functions to implement Lexicoder
+library(quanteda.textmodels) # for estimating similarity and complexity measures
+library(quanteda.textplots) #for visualizing text modelling results
+```
+
+## Importing data
+
+```{r}
+kaneko_dfm  <- readRDS(gzcon(url("https://github.com/cjbarrie/CTA-ED/blob/main/data/wordscaling/study1_kaneko.rds?raw=true")))
+
+```
+
+## Manipulate data in the same way as @kaneko_estimating_2021
+This data is in the form a document-feature-matrix. Grouping them at the level of newspaper and removing infrequent words.
+
+```{r}
+table(docvars(kaneko_dfm, "Newspaper"))
+## prepare the newspaper-level document-feature matrix
+# compress the document-feature matrix at the newspaper level
+kaneko_dfm_study1 <- dfm_group(kaneko_dfm, groups = Newspaper)
+# remove words not used by two or more newspapers
+kaneko_dfm_study1 <- dfm_trim(kaneko_dfm_study1, min_docfreq = 2, docfreq_type = "count")
+
+## size of the document-feature matrix
+dim(kaneko_dfm_study1)
+
+```
+
+## Exercises
+
+1. Estimate a wordfish model for the @kaneko_estimating_2021 data
+```{r}
+#### estimate the Wordfish model ####
+set.seed(123L)
+dfm_kaneko_results<- textmodel_wordfish(kaneko_dfm_study1, 
+                                             sparse = TRUE) #Specify the matrix in a sparse format
+```
+
+```{r}
+#### Output results ####
+summary(dfm_kaneko_results)
+```
+
+2. Visualize the results
+```{r}
+#We can then plot the estimates of the latent newspaper position.
+textplot_scale1d(dfm_kaneko_results)
+```
+
+Most newspapers with high influence have high estimates. This can be seen from their position on the right side of the potential dimension. However, Asahi, which is considered a leading newspaper, has an estimated score of around -1.On the other hand, tabloids have lower estimated scores and are located on the left-hand side. This could mean that tabloids are perceived to be less influential or have a different level of influence compared to mainstream newspapers.
+
+```{r}
+#Plotting the word-level betas.
+textplot_scale1d(dfm_kaneko_results, margin = "features")
+```
+
+```{r}
+
+features <- dfm_kaneko_results[["features"]] #Extract the "features" column.
+
+betas <- dfm_kaneko_results[["beta"]] #Extract the "beta" column.
+
+feat_betas <- as.data.frame(cbind(features, betas)) #Combine the "features" and "betas" columns into a new dataframe.
+feat_betas$betas <- as.numeric(feat_betas$betas) #Convert "betas" column to numeric.
+
+feat_betas %>%
+  arrange(desc(betas)) %>% #Arrange the rows in descending order based on the 'betas' column values.
+  top_n(20) %>% #Select the top 20 rows with the highest 'betas' values.
+  kbl() %>% #Convert the resulting dataframe into kable.
+  kable_styling(bootstrap_options = "striped") #Use the Bootstrap style to add striped rows to the table.
+
+```
